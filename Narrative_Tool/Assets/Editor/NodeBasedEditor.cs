@@ -1,12 +1,15 @@
 using UnityEngine;
 using UnityEditor;
 using System.Collections.Generic;
+using System.Linq;
 
 public class NodeBasedEditor : EditorWindow
 {
     //lists of nodes and connections.
     private List<Node> nodes;
     private List<Connection> connections;
+
+    private List<TriggerNodeInfo> sceneItems = new List<TriggerNodeInfo>();
 
     //the styles for the nodes (visual styles)
     private GUIStyle nodeStyle;
@@ -29,7 +32,7 @@ public class NodeBasedEditor : EditorWindow
     private Vector2 drag;
 
     private float nodeWidth = 200;
-    private float nodeHeight = 150;
+    private float nodeHeight = 200;
 
     private int currentWindowID = 0;
 
@@ -64,12 +67,114 @@ public class NodeBasedEditor : EditorWindow
         outPointStyle.normal.background = EditorGUIUtility.Load("builtin skins/darkskin/images/btn right.png") as Texture2D;
         outPointStyle.active.background = EditorGUIUtility.Load("builtin skins/darkskin/images/btn right on.png") as Texture2D;
         outPointStyle.border = new RectOffset(4, 4, 12, 12);
+
+        LoadData();
+    }
+
+    private void LoadData()
+    {
+        List<GameObject> loadedObjects = GameObject.FindGameObjectsWithTag("NarrativeTrigger").ToList();
+        List<GameObject> objectsToRemove = new List<GameObject>();
+
+        foreach(GameObject obj in loadedObjects)
+        {
+            TriggerNodeInfo tempScript = obj.GetComponent<TriggerNodeInfo>();
+            if (tempScript != null)
+            {
+                sceneItems.Add(tempScript);
+            }
+            else
+            {
+                objectsToRemove.Add(obj);
+            }
+        }
+
+        if(objectsToRemove.Count > 0)
+        {
+            Debug.LogWarning("WARNING: Some gameobjects with the tag NarrativeTrigger don't have a TriggerNodeInfo script. Please fix or remove those!");
+        }
+
+        if(nodes == null)
+        {
+            nodes = new List<Node>();
+        }
+
+        foreach (TriggerNodeInfo info in sceneItems)
+        {
+            Node tempNode = new Node(info.rect, nodeStyle, selectedNodeStyle, inPointStyle, outPointStyle, titleStyle, OnClickRemoveNode, this, nodesCreated);
+
+            tempNode.ID = info.ID;
+            tempNode.title = info.stepDescription;
+            tempNode.showAudio = info.showAudio;
+            tempNode.playedAudioClips = info.playedAudioClips;
+            tempNode.delays = info.delays;
+            tempNode.pathType = info.pathType;
+            tempNode.scrollViewVector = info.scrollViewVector;
+            tempNode.worldPosition = info.transform.position;
+
+            /*foreach(Vector2 con in info.nodeConnections)
+            {
+                tempNode.AddNewConnection(new Connection())
+            }*/
+
+            nodes.Add(tempNode);
+        }
+    }
+
+    private void SaveData()
+    {
+        foreach(Node _node in nodes)
+        {
+            TriggerNodeInfo script = sceneItems.Where(t => t.ID == _node.ID).First();
+            GameObject obj = script.gameObject;
+            obj.name = "Generated_Node_" + script.ID;
+
+            script.SaveTriggerData(_node.rect, _node.ID, _node.title, _node.showAudio, _node.playedAudioClips, _node.delays, null, _node.pathType, _node.scrollViewVector, _node.worldPosition);
+        }
+
+        ConnectionsManager conManager = GetConnectionManager();
+
+        List<ConnectionInfo> conList = new List<ConnectionInfo>();
+
+        foreach (Connection con in connections)
+        {
+            conList.Add(new ConnectionInfo(con.inPoint, con.outPoint, con.connectionType));
+        }
+
+        conManager.SaveConnections(conList);
+    }
+
+    private ConnectionsManager GetConnectionManager()
+    {
+        //This can be changed to the desired gameobject you want to attach the ConnectionManager script to.
+        GameObject gameManagerObj = GameObject.FindGameObjectWithTag("GameController");
+
+        if (gameManagerObj == null)
+        {
+            gameManagerObj = new GameObject();
+            gameManagerObj.name = "GameManager";
+            gameManagerObj.tag = "GameController";
+            gameManagerObj.AddComponent<ConnectionsManager>();
+        }
+
+        ConnectionsManager conManager = GameObject.FindGameObjectWithTag("GameController").GetComponent<ConnectionsManager>();
+        if (conManager == null)
+        {
+            conManager = gameManagerObj.AddComponent<ConnectionsManager>();
+        }
+
+        return conManager;
     }
 
     private void OnGUI()
     {
         DrawGrid(20, 0.2f, Color.gray);
         DrawGrid(100, 0.4f, Color.gray);
+
+        if (GUILayout.Button("Save", GUILayout.Width(75), GUILayout.Height(50)))
+        {
+            SaveData();
+        }
 
         BeginWindows();
 
@@ -79,7 +184,7 @@ public class NodeBasedEditor : EditorWindow
         {
             foreach (Node nod in nodes)
             {
-                nod.rect = GUI.Window(currentWindowID, nod.rect, nod.DrawNodeWindow, "Window " + currentWindowID);
+                nod.rect = GUI.Window(currentWindowID, nod.rect, nod.DrawNodeWindow, "Story Node " + currentWindowID);
                 currentWindowID++;
             }
         }
@@ -237,8 +342,25 @@ public class NodeBasedEditor : EditorWindow
             nodes = new List<Node>();
         }
 
-        nodes.Add(new Node(mousePosition, nodeWidth, nodeHeight, nodeStyle, selectedNodeStyle, inPointStyle, outPointStyle, titleStyle, OnClickRemoveNode, this, nodesCreated));
+        Rect _rect = new Rect(mousePosition.x, mousePosition.y, nodeWidth, nodeHeight);
+        nodes.Add(new Node(_rect, nodeStyle, selectedNodeStyle, inPointStyle, outPointStyle, titleStyle, OnClickRemoveNode, this, nodesCreated));
         nodesCreated++;
+
+        GameObject nodeObject = new GameObject();
+        nodeObject.name = "Generated_Node_" + (nodesCreated-1);
+        nodeObject.tag = "NarrativeTrigger";
+
+        nodeObject.AddComponent<BoxCollider>();
+        nodeObject.AddComponent<TriggerNodeInfo>();
+
+        nodeObject.GetComponent<BoxCollider>().size = new Vector3(10, 10, 1);
+        TriggerNodeInfo script = nodeObject.GetComponent<TriggerNodeInfo>();
+
+        Node currentNode = nodes[nodes.Count - 1];
+
+        script.SaveTriggerData(currentNode.rect, currentNode.ID, currentNode.title, currentNode.showAudio, currentNode.playedAudioClips, currentNode.delays, null, currentNode.pathType, currentNode.scrollViewVector, currentNode.worldPosition);
+
+        sceneItems.Add(script);
     }
 
     public void OnClickInPoint(Connectable inPoint, PathTypes type)
@@ -285,18 +407,12 @@ public class NodeBasedEditor : EditorWindow
         {
             List<Connection> connectionsToRemove = new List<Connection>();
 
-            for (int i = 0; i < connections.Count; i++)
-            {
-                //for when the node gets removed, remove the connections.
-                /*if (connections[i].inPoint == node.inPoint || connections[i].outPoint == node.outPoint)
-                {
-                    connectionsToRemove.Add(connections[i]);
-                }*/
-            }
+            //for when the node gets removed, remove the connections.
+            connectionsToRemove.AddRange(node.nodeCons);
 
             for (int i = 0; i < connectionsToRemove.Count; i++)
             {
-                connections.Remove(connectionsToRemove[i]);
+                RemoveNodeConnection(connectionsToRemove[i]);
             }
 
             connectionsToRemove = null;
@@ -305,9 +421,20 @@ public class NodeBasedEditor : EditorWindow
         nodes.Remove(node);
     }
 
+    private void RemoveNodeConnection(Connection con)
+    {
+        Node inPoint = nodes.Where(p => p.ID == con.inPoint.ID).First();
+        Node outPoint = nodes.Where(p => p.ID == con.outPoint.ID).First();
+
+        inPoint.RemoveConnection(con);
+        outPoint.RemoveConnection(con);
+
+        connections.Remove(con);
+    }
+
     private void OnClickRemoveConnection(Connection connection)
     {
-        connections.Remove(connection);
+        RemoveNodeConnection(connection);
     }
 
     private void CreateConnection()
@@ -316,8 +443,16 @@ public class NodeBasedEditor : EditorWindow
         {
             connections = new List<Connection>();
         }
-        
-        connections.Add(new Connection(selectedInPoint, selectedOutPoint, selectedType, OnClickRemoveConnection));
+
+        Node inPoint = nodes.Where(p => p.ID == selectedInPoint.ID).First();
+        Node outPoint = nodes.Where(p => p.ID == selectedOutPoint.ID).First();
+
+        Connection newCon = new Connection(selectedInPoint, selectedOutPoint, selectedType, OnClickRemoveConnection);
+
+        inPoint.AddNewConnection(newCon);
+        outPoint.AddNewConnection(newCon);
+
+        connections.Add(newCon);
     }
 
     private void ClearConnectionSelection()

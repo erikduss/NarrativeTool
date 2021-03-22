@@ -11,7 +11,7 @@ public class Node : Connectable
 
     //components
     public string title;
-    public bool showAudio = true;
+    public List<bool> showAudio = new List<bool>();
 
     public List<AudioClip> playedAudioClips = new List<AudioClip>();
     public List<int> delays = new List<int>();
@@ -21,6 +21,7 @@ public class Node : Connectable
 
     private NodeBasedEditor editorInstance;
 
+    public List<Connection> nodeCons { get { return nodeConnections; } }
     private List<Connection> nodeConnections = new List<Connection>();
 
     public GUIStyle style;
@@ -31,16 +32,15 @@ public class Node : Connectable
     public Action<Node> OnRemoveNode;
 
     private string nodeTitle;
-    private PathTypes pathType = PathTypes.NONE;
+    public PathTypes pathType = PathTypes.NONE;
 
-    private Vector2 scrollViewVector = Vector2.zero;
+    public Vector2 scrollViewVector = Vector2.zero;
 
-    int indexNumber;
-    bool show = false;
+    public Vector3 worldPosition = Vector3.zero;
 
-    public Node(Vector2 position, float width, float height, GUIStyle nodeStyle, GUIStyle selectedStyle, GUIStyle inPointStyle, GUIStyle outPointStyle, GUIStyle _titleStyle, Action<Node> OnClickRemoveNode, NodeBasedEditor editor, int nodeID)
+    public Node(Rect _rect, GUIStyle nodeStyle, GUIStyle selectedStyle, GUIStyle inPointStyle, GUIStyle outPointStyle, GUIStyle _titleStyle, Action<Node> OnClickRemoveNode, NodeBasedEditor editor, int nodeID)
     {
-        privRect = new Rect(position.x, position.y, width, height);
+        privRect = _rect;
         style = nodeStyle;
         ID = nodeID;
         defaultNodeStyle = nodeStyle;
@@ -51,6 +51,17 @@ public class Node : Connectable
 
         playedAudioClips.Add(null);
         delays.Add(0);
+        showAudio.Add(true);
+    }
+
+    public void AddNewConnection(Connection con)
+    {
+        nodeConnections.Add(con);
+    }
+
+    public void RemoveConnection(Connection con)
+    {
+        nodeConnections.Remove(con);
     }
 
     public void Drag(Vector2 delta)
@@ -62,21 +73,45 @@ public class Node : Connectable
     {
         title = GUILayout.TextField(title);
 
-        showAudio = EditorGUILayout.Foldout(showAudio, "Audio Clips: ");
+        scrollViewVector = EditorGUILayout.BeginScrollView(scrollViewVector);
+            for(int i=0; i<playedAudioClips.Count; i++)
+            {
+                showAudio[i] = EditorGUILayout.Foldout(showAudio[i], "Audio clip " + i + ":");
 
-        if (showAudio)
+                if (showAudio[i])
+                {
+                    GUILayout.BeginHorizontal();
+                    EditorGUILayout.LabelField("Audio clip " + i + ":", GUILayout.Width(75));
+                    playedAudioClips[i] = (AudioClip)EditorGUILayout.ObjectField(playedAudioClips[i], typeof(AudioClip), false);
+                    GUILayout.EndHorizontal();
+
+                    GUILayout.BeginHorizontal();
+                    EditorGUILayout.LabelField("Delay: ", GUILayout.Width(50));
+                    delays[i] = EditorGUILayout.IntField(delays[i]);
+                    GUILayout.EndHorizontal();
+                }
+            }
+
+        if (GUILayout.Button("Add Clip"))
         {
-            GUILayout.BeginHorizontal();
-            EditorGUILayout.LabelField("Audio clip 0:", GUILayout.Width(75));
-            playedAudioClips[0] = (AudioClip)EditorGUILayout.ObjectField(playedAudioClips[0], typeof(AudioClip), false);
-            GUILayout.EndHorizontal();
-
-            GUILayout.BeginHorizontal();
-            EditorGUILayout.LabelField("Delay: ", GUILayout.Width(50));
-            delays[0] = EditorGUILayout.IntField(delays[0]);
-            GUILayout.EndHorizontal();
+            playedAudioClips.Add(null);
+            delays.Add(0);
+            showAudio.Add(true);
         }
-        
+        if (GUILayout.Button("Remove Clip"))
+        {
+            if(playedAudioClips.Count > 1) //ALWAYS need at least 1 clip
+            {
+                playedAudioClips.RemoveAt(playedAudioClips.Count - 1);
+                delays.RemoveAt(delays.Count - 1);
+                showAudio.RemoveAt(showAudio.Count - 1);
+            }
+        }
+        EditorGUILayout.EndScrollView();
+
+        worldPosition = EditorGUILayout.Vector3Field("Trigger World Position: ", worldPosition);
+
+        //TODO: Add button to grab selected object in the scene
 
         //GUI.DragWindow();
     }

@@ -8,7 +8,7 @@ public class Connection
     public Connectable outPoint;
     public Action<Connection> OnClickRemoveConnection;
 
-    private PathTypes connectionType;
+    public PathTypes connectionType;
 
     private bool isSelected = false;
 
