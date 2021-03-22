@@ -112,12 +112,59 @@ public class NodeBasedEditor : EditorWindow
             tempNode.scrollViewVector = info.scrollViewVector;
             tempNode.worldPosition = info.transform.position;
 
-            /*foreach(Vector2 con in info.nodeConnections)
-            {
-                tempNode.AddNewConnection(new Connection())
-            }*/
-
             nodes.Add(tempNode);
+        }
+
+        ConnectionsManager conManager = GetConnectionManager();
+
+        List<ConnectionInfo> connectionsToRemove = new List<ConnectionInfo>();
+
+        if(connections == null)
+        {
+            connections = new List<Connection>();
+        }
+
+        if(nodes.Count > 0)
+        {
+            foreach (ConnectionInfo info in conManager.connections)
+            {
+                bool bothNodesExist = false;
+
+                Node inPoint = nodes.Where(t => t.ID == info.inPoint.ID).First();
+                Node outPoint = nodes.Where(t => t.ID == info.outPoint.ID).First();
+
+                Connection tempCon = new Connection(inPoint, outPoint, info.connectionType, OnClickRemoveConnection);
+
+                if (inPoint != null && outPoint != null)
+                {
+                    bothNodesExist = true;
+                }
+                else
+                {
+                    connectionsToRemove.Add(info);
+                }
+
+                if (bothNodesExist)
+                {
+                    inPoint.AddNewConnection(tempCon);
+                    outPoint.AddNewConnection(tempCon);
+
+                    connections.Add(tempCon);
+                }
+            }
+        }
+        else
+        {
+            connectionsToRemove = conManager.connections;
+        }
+
+        if(connectionsToRemove.Count > 0)
+        {
+            foreach(ConnectionInfo inf in connectionsToRemove)
+            {
+                conManager.connections.Remove(inf);
+            }
+            connectionsToRemove.Clear();
         }
     }
 

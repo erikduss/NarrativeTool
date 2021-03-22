@@ -7,7 +7,7 @@ public class ConnectionInfo
     public Connectable inPoint;
     public Connectable outPoint;
 
-    private PathTypes connectionType;
+    public PathTypes connectionType;
 
     public ConnectionInfo(Connectable _inPoint, Connectable _outPoint, PathTypes _connectionType)
     {
