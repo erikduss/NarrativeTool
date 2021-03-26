@@ -4,8 +4,8 @@ using UnityEngine;
 
 public class TriggerNodeInfo : MonoBehaviour
 {
-    public Rect rect { get; set; }
-    public int ID { get; set; }
+    public Rect rect;
+    public int ID;
 
     //components
     public string stepDescription;
@@ -18,15 +18,17 @@ public class TriggerNodeInfo : MonoBehaviour
 
     [HideInInspector] public bool isDragged = false;
     [HideInInspector] public bool isSelected = false;
-    
+
     //only need to know the in and out points. X of the vector is in point, Y of the vector is out point. (one of them is ALWAYS this node ID)
-    public List<Vector2> nodeConnections = new List<Vector2>();
+    public List<Vector2> nodeConnections;
     
     public PathTypes pathType;
 
     public Vector2 scrollViewVector;
 
     private Vector3 worldPosition;
+
+    private ConnectionsManager conManager;
 
     public void SaveTriggerData(Rect _rect, int _ID, string _desc, List<bool> _showOptions, List<AudioClip> _audio, List<int> _delays, List<Vector2> _cons, PathTypes _type, Vector2 _svVec, Vector3 _worldPos)
     {
@@ -47,10 +49,44 @@ public class TriggerNodeInfo : MonoBehaviour
         }
     }
 
-    // Start is called before the first frame update
-    void Start()
+    private void EnableNextTriggers()
     {
-        
+        List<int> triggerID = new List<int>();
+        if(nodeConnections.Count > 0)
+        {
+            foreach(Vector2 con in nodeConnections)
+            {
+                if(con.x == ID && con.y == ID)
+                {
+                    Debug.LogWarning("This trigger has itself as a connection.");
+                }
+                else if(con.x == ID)
+                {
+                    triggerID.Add((int)con.y);
+                }
+                else if(con.y == ID)
+                {
+                    triggerID.Add((int)con.x);
+                }
+            }
+        }
+
+        if(triggerID.Count > 0)
+        {
+            conManager.EnableTriggers(triggerID);
+        }
+    }
+
+    public void InvokeTrigger()
+    {
+        EnableNextTriggers();
+    }
+
+    // Start is called before the first frame update
+    void Awake()
+    {
+        conManager = GameObject.FindGameObjectWithTag("GameController").GetComponent<ConnectionsManager>();
+        conManager.LoadTriggerInfo(this);
     }
 
     // Update is called once per frame

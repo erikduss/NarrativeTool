@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEditor;
 using System.Collections.Generic;
 using System.Linq;
+using UnityEditor.SceneManagement;
 
 public class NodeBasedEditor : EditorWindow
 {
@@ -36,6 +37,11 @@ public class NodeBasedEditor : EditorWindow
 
     private int currentWindowID = 0;
 
+    private GameObject nodesParent;
+
+    private float saveTime = 30;
+    private float nextSave = 0;
+
     [MenuItem("Window/Node Based Editor")]
     private static void OpenWindow()
     {
@@ -45,30 +51,33 @@ public class NodeBasedEditor : EditorWindow
 
     private void OnEnable()
     {
-        nodeStyle = new GUIStyle();
-        nodeStyle.normal.background = EditorGUIUtility.Load("builtin skins/darkskin/images/node1.png") as Texture2D;
-        nodeStyle.border = new RectOffset(12, 12, 12, 12);
+        if (!EditorApplication.isPlayingOrWillChangePlaymode)
+        {
+            nodeStyle = new GUIStyle();
+            nodeStyle.normal.background = EditorGUIUtility.Load("builtin skins/darkskin/images/node1.png") as Texture2D;
+            nodeStyle.border = new RectOffset(12, 12, 12, 12);
 
-        selectedNodeStyle = new GUIStyle();
-        selectedNodeStyle.normal.background = EditorGUIUtility.Load("builtin skins/darkskin/images/node1 on.png") as Texture2D;
-        selectedNodeStyle.border = new RectOffset(12, 12, 12, 12);
+            selectedNodeStyle = new GUIStyle();
+            selectedNodeStyle.normal.background = EditorGUIUtility.Load("builtin skins/darkskin/images/node1 on.png") as Texture2D;
+            selectedNodeStyle.border = new RectOffset(12, 12, 12, 12);
 
-        titleStyle = new GUIStyle();
-        titleStyle.alignment = TextAnchor.MiddleCenter;
-        titleStyle.normal.background = EditorGUIUtility.Load("builtin skins/darkskin/images/node1 on.png") as Texture2D;
-        titleStyle.border = new RectOffset(8, 8, 8, 8);
+            titleStyle = new GUIStyle();
+            titleStyle.alignment = TextAnchor.MiddleCenter;
+            titleStyle.normal.background = EditorGUIUtility.Load("builtin skins/darkskin/images/node1 on.png") as Texture2D;
+            titleStyle.border = new RectOffset(8, 8, 8, 8);
 
-        inPointStyle = new GUIStyle();
-        inPointStyle.normal.background = EditorGUIUtility.Load("builtin skins/darkskin/images/btn left.png") as Texture2D;
-        inPointStyle.active.background = EditorGUIUtility.Load("builtin skins/darkskin/images/btn left on.png") as Texture2D;
-        inPointStyle.border = new RectOffset(4, 4, 12, 12);
+            inPointStyle = new GUIStyle();
+            inPointStyle.normal.background = EditorGUIUtility.Load("builtin skins/darkskin/images/btn left.png") as Texture2D;
+            inPointStyle.active.background = EditorGUIUtility.Load("builtin skins/darkskin/images/btn left on.png") as Texture2D;
+            inPointStyle.border = new RectOffset(4, 4, 12, 12);
 
-        outPointStyle = new GUIStyle();
-        outPointStyle.normal.background = EditorGUIUtility.Load("builtin skins/darkskin/images/btn right.png") as Texture2D;
-        outPointStyle.active.background = EditorGUIUtility.Load("builtin skins/darkskin/images/btn right on.png") as Texture2D;
-        outPointStyle.border = new RectOffset(4, 4, 12, 12);
-
-        LoadData();
+            outPointStyle = new GUIStyle();
+            outPointStyle.normal.background = EditorGUIUtility.Load("builtin skins/darkskin/images/btn right.png") as Texture2D;
+            outPointStyle.active.background = EditorGUIUtility.Load("builtin skins/darkskin/images/btn right on.png") as Texture2D;
+            outPointStyle.border = new RectOffset(4, 4, 12, 12);
+        
+            LoadData();
+        }
     }
 
     private void LoadData()
@@ -76,7 +85,15 @@ public class NodeBasedEditor : EditorWindow
         List<GameObject> loadedObjects = GameObject.FindGameObjectsWithTag("NarrativeTrigger").ToList();
         List<GameObject> objectsToRemove = new List<GameObject>();
 
-        foreach(GameObject obj in loadedObjects)
+        nodesParent = GameObject.FindGameObjectWithTag("ObjectsParent");
+        if(nodesParent == null)
+        {
+            nodesParent = new GameObject();
+            nodesParent.name = "GeneratedTriggers";
+            nodesParent.tag = "ObjectsParent";
+        }
+
+        foreach (GameObject obj in loadedObjects)
         {
             TriggerNodeInfo tempScript = obj.GetComponent<TriggerNodeInfo>();
             if (tempScript != null)
@@ -113,6 +130,7 @@ public class NodeBasedEditor : EditorWindow
             tempNode.worldPosition = info.transform.position;
 
             nodes.Add(tempNode);
+            nodesCreated++;
         }
 
         ConnectionsManager conManager = GetConnectionManager();
@@ -126,30 +144,34 @@ public class NodeBasedEditor : EditorWindow
 
         if(nodes.Count > 0)
         {
-            foreach (ConnectionInfo info in conManager.connections)
+            if(conManager.connections != null)
             {
-                bool bothNodesExist = false;
 
-                Node inPoint = nodes.Where(t => t.ID == info.inPoint.ID).First();
-                Node outPoint = nodes.Where(t => t.ID == info.outPoint.ID).First();
-
-                Connection tempCon = new Connection(inPoint, outPoint, info.connectionType, OnClickRemoveConnection);
-
-                if (inPoint != null && outPoint != null)
+                foreach (ConnectionInfo info in conManager.connections)
                 {
-                    bothNodesExist = true;
-                }
-                else
-                {
-                    connectionsToRemove.Add(info);
-                }
+                    bool bothNodesExist = false;
 
-                if (bothNodesExist)
-                {
-                    inPoint.AddNewConnection(tempCon);
-                    outPoint.AddNewConnection(tempCon);
+                    Node inPoint = nodes.Where(t => t.ID == info.inPointID).First();
+                    Node outPoint = nodes.Where(t => t.ID == info.outPointID).First();
 
-                    connections.Add(tempCon);
+                    Connection tempCon = new Connection(inPoint, outPoint, info.connectionType, OnClickRemoveConnection);
+
+                    if (inPoint != null && outPoint != null)
+                    {
+                        bothNodesExist = true;
+                    }
+                    else
+                    {
+                        connectionsToRemove.Add(info);
+                    }
+
+                    if (bothNodesExist)
+                    {
+                        inPoint.AddNewConnection(tempCon);
+                        outPoint.AddNewConnection(tempCon);
+
+                        connections.Add(tempCon);
+                    }
                 }
             }
         }
@@ -158,13 +180,16 @@ public class NodeBasedEditor : EditorWindow
             connectionsToRemove = conManager.connections;
         }
 
-        if(connectionsToRemove.Count > 0)
+        if(connectionsToRemove != null)
         {
-            foreach(ConnectionInfo inf in connectionsToRemove)
+            if (connectionsToRemove.Count > 0)
             {
-                conManager.connections.Remove(inf);
+                foreach (ConnectionInfo inf in connectionsToRemove)
+                {
+                    conManager.connections.Remove(inf);
+                }
+                connectionsToRemove.Clear();
             }
-            connectionsToRemove.Clear();
         }
     }
 
@@ -176,7 +201,18 @@ public class NodeBasedEditor : EditorWindow
             GameObject obj = script.gameObject;
             obj.name = "Generated_Node_" + script.ID;
 
-            script.SaveTriggerData(_node.rect, _node.ID, _node.title, _node.showAudio, _node.playedAudioClips, _node.delays, null, _node.pathType, _node.scrollViewVector, _node.worldPosition);
+            List<Vector2> v2Cons = null;
+
+            if(_node.nodeCons.Count > 0)
+            {
+                v2Cons = new List<Vector2>();
+                foreach (Connection con in _node.nodeCons)
+                {
+                    v2Cons.Add(new Vector2(con.inPoint.ID, con.outPoint.ID));
+                }
+            }
+
+            script.SaveTriggerData(_node.rect, _node.ID, _node.title, _node.showAudio, _node.playedAudioClips, _node.delays, v2Cons, _node.pathType, _node.scrollViewVector, _node.worldPosition);
         }
 
         ConnectionsManager conManager = GetConnectionManager();
@@ -185,10 +221,16 @@ public class NodeBasedEditor : EditorWindow
 
         foreach (Connection con in connections)
         {
-            conList.Add(new ConnectionInfo(con.inPoint, con.outPoint, con.connectionType));
+            conList.Add(new ConnectionInfo(con.inPoint.ID, con.outPoint.ID, con.connectionType));
         }
 
         conManager.SaveConnections(conList);
+
+        string[] path = EditorSceneManager.GetActiveScene().path.Split(char.Parse("/"));
+        path[path.Length - 1] = path[path.Length - 1];
+        bool saveOK = EditorSceneManager.SaveScene(EditorSceneManager.GetActiveScene(), string.Join("/", path));
+        Debug.Log("Saved Scene " + (saveOK ? "Sucessfully" : "Error!"));
+        nextSave = (float)EditorApplication.timeSinceStartup + saveTime;
     }
 
     private ConnectionsManager GetConnectionManager()
@@ -246,6 +288,11 @@ public class NodeBasedEditor : EditorWindow
         ProcessEvents(Event.current);
 
         if (GUI.changed) Repaint();
+
+        if (EditorApplication.timeSinceStartup > nextSave)
+        {
+            SaveData();
+        }
     }
 
     private void DrawGrid(float gridSpacing, float gridOpacity, Color gridColor)
@@ -396,6 +443,7 @@ public class NodeBasedEditor : EditorWindow
         GameObject nodeObject = new GameObject();
         nodeObject.name = "Generated_Node_" + (nodesCreated-1);
         nodeObject.tag = "NarrativeTrigger";
+        nodeObject.transform.parent = nodesParent.transform;
 
         nodeObject.AddComponent<BoxCollider>();
         nodeObject.AddComponent<TriggerNodeInfo>();
@@ -406,7 +454,6 @@ public class NodeBasedEditor : EditorWindow
         Node currentNode = nodes[nodes.Count - 1];
 
         script.SaveTriggerData(currentNode.rect, currentNode.ID, currentNode.title, currentNode.showAudio, currentNode.playedAudioClips, currentNode.delays, null, currentNode.pathType, currentNode.scrollViewVector, currentNode.worldPosition);
-
         sceneItems.Add(script);
     }
 
