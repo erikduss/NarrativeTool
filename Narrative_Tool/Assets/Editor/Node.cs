@@ -111,10 +111,15 @@ public class Node : Connectable
 
         worldPosition = EditorGUILayout.Vector3Field("Trigger World Position: ", worldPosition);
 
-        //TODO: Add button to grab selected object in the scene
-
-        //GUI.DragWindow();
-    }
+        if (GUILayout.Button("Select in Scene"))
+        {
+            GameObject select = editorInstance.SelectObjectInScene(ID);
+            if (select != null)
+            {
+                Selection.activeGameObject = select;
+            }
+        }
+        }
 
 public bool ProcessEvents(Event e)
     {

@@ -26,7 +26,7 @@ public class TriggerNodeInfo : MonoBehaviour
 
     public Vector2 scrollViewVector;
 
-    private Vector3 worldPosition;
+    [HideInInspector] public Vector3 worldPosition;
 
     private ConnectionsManager conManager;
 

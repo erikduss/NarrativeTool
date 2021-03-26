@@ -10,8 +10,6 @@ public class Connection
 
     public PathTypes connectionType;
 
-    private bool isSelected = false;
-
     public Connection(Connectable starrRect, Connectable endRect, PathTypes connectType, Action<Connection> OnClickRemoveConnection)
     {
         inPoint = starrRect;

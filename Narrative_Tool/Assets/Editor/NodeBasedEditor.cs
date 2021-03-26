@@ -33,9 +33,10 @@ public class NodeBasedEditor : EditorWindow
     private Vector2 drag;
 
     private float nodeWidth = 200;
-    private float nodeHeight = 200;
+    private float nodeHeight = 250;
 
     private int currentWindowID = 0;
+    private int highestID = 0;
 
     private GameObject nodesParent;
 
@@ -119,6 +120,11 @@ public class NodeBasedEditor : EditorWindow
         foreach (TriggerNodeInfo info in sceneItems)
         {
             Node tempNode = new Node(info.rect, nodeStyle, selectedNodeStyle, inPointStyle, outPointStyle, titleStyle, OnClickRemoveNode, this, nodesCreated);
+
+            if(info.ID > highestID)
+            {
+                highestID = info.ID;
+            }
 
             tempNode.ID = info.ID;
             tempNode.title = info.stepDescription;
@@ -229,7 +235,7 @@ public class NodeBasedEditor : EditorWindow
         string[] path = EditorSceneManager.GetActiveScene().path.Split(char.Parse("/"));
         path[path.Length - 1] = path[path.Length - 1];
         bool saveOK = EditorSceneManager.SaveScene(EditorSceneManager.GetActiveScene(), string.Join("/", path));
-        Debug.Log("Saved Scene " + (saveOK ? "Sucessfully" : "Error!"));
+        Debug.Log("Saved the Nodes and the Scene " + (saveOK ? "Sucessfully" : "Error!"));
         nextSave = (float)EditorApplication.timeSinceStartup + saveTime;
     }
 
@@ -273,7 +279,7 @@ public class NodeBasedEditor : EditorWindow
         {
             foreach (Node nod in nodes)
             {
-                nod.rect = GUI.Window(currentWindowID, nod.rect, nod.DrawNodeWindow, "Story Node " + currentWindowID);
+                nod.rect = GUI.Window(currentWindowID, nod.rect, nod.DrawNodeWindow, "Story Node " + nod.ID);
                 currentWindowID++;
             }
         }
@@ -291,6 +297,7 @@ public class NodeBasedEditor : EditorWindow
 
         if (EditorApplication.timeSinceStartup > nextSave)
         {
+            CheckForUpdatedPositions();
             SaveData();
         }
     }
@@ -437,11 +444,11 @@ public class NodeBasedEditor : EditorWindow
         }
 
         Rect _rect = new Rect(mousePosition.x, mousePosition.y, nodeWidth, nodeHeight);
-        nodes.Add(new Node(_rect, nodeStyle, selectedNodeStyle, inPointStyle, outPointStyle, titleStyle, OnClickRemoveNode, this, nodesCreated));
-        nodesCreated++;
+        nodes.Add(new Node(_rect, nodeStyle, selectedNodeStyle, inPointStyle, outPointStyle, titleStyle, OnClickRemoveNode, this, (highestID+1)));
+        highestID++;
 
         GameObject nodeObject = new GameObject();
-        nodeObject.name = "Generated_Node_" + (nodesCreated-1);
+        nodeObject.name = "Generated_Node_" + (highestID);
         nodeObject.tag = "NarrativeTrigger";
         nodeObject.transform.parent = nodesParent.transform;
 
@@ -512,6 +519,9 @@ public class NodeBasedEditor : EditorWindow
             connectionsToRemove = null;
         }
 
+        GameObject objToRemove = sceneItems.Find(x => x.ID == node.ID).gameObject;
+        DestroyImmediate(objToRemove);
+
         nodes.Remove(node);
     }
 
@@ -529,6 +539,22 @@ public class NodeBasedEditor : EditorWindow
     private void OnClickRemoveConnection(Connection connection)
     {
         RemoveNodeConnection(connection);
+    }
+
+    private void CheckForUpdatedPositions()
+    {
+        foreach(TriggerNodeInfo nodeInfo in sceneItems)
+        {
+            //when the current position of the gameobject is different than the last saved position, it needs to be updated in the node editor.
+            if (nodeInfo.worldPosition != nodeInfo.gameObject.transform.position)
+            {
+                Node selectedNode = nodes.Find(x => x.ID == nodeInfo.ID);
+                if (selectedNode != null)
+                {
+                    selectedNode.worldPosition = nodeInfo.gameObject.transform.position;
+                }
+            }
+        }
     }
 
     private void CreateConnection()
@@ -556,5 +582,11 @@ public class NodeBasedEditor : EditorWindow
         selectedType = PathTypes.NONE;
 
         connecting = false;
+    }
+
+    public GameObject SelectObjectInScene(int ID)
+    {
+        GameObject selection = sceneItems.Find(x => x.ID == ID).gameObject;
+        return selection;
     }
 }
