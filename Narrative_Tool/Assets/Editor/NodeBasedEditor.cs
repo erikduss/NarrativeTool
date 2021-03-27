@@ -36,7 +36,7 @@ public class NodeBasedEditor : EditorWindow
     private float nodeHeight = 250;
 
     private int currentWindowID = 0;
-    private int highestID = 0;
+    private int highestID = 0; //The higest ID is needed to make sure there wont be duplicate IDs
 
     private GameObject nodesParent;
 
@@ -52,6 +52,7 @@ public class NodeBasedEditor : EditorWindow
 
     private void OnEnable()
     {
+        //Only enable the editor when the game is not running.
         if (!EditorApplication.isPlayingOrWillChangePlaymode)
         {
             nodeStyle = new GUIStyle();
@@ -83,9 +84,11 @@ public class NodeBasedEditor : EditorWindow
 
     private void LoadData()
     {
+        //Objects can only be loaded when the have the correct tag.
         List<GameObject> loadedObjects = GameObject.FindGameObjectsWithTag("NarrativeTrigger").ToList();
         List<GameObject> objectsToRemove = new List<GameObject>();
 
+        //The triggers need a parent in the scene, that way it does not get messy in the scene. (This can be changed to a different tag etc).
         nodesParent = GameObject.FindGameObjectWithTag("ObjectsParent");
         if(nodesParent == null)
         {
@@ -94,6 +97,7 @@ public class NodeBasedEditor : EditorWindow
             nodesParent.tag = "ObjectsParent";
         }
 
+        //Every gamobject that gets loaded in must have a TriggerNodeInfo script. Otherwise there's no data to be loaded.
         foreach (GameObject obj in loadedObjects)
         {
             TriggerNodeInfo tempScript = obj.GetComponent<TriggerNodeInfo>();
@@ -117,10 +121,12 @@ public class NodeBasedEditor : EditorWindow
             nodes = new List<Node>();
         }
 
+        //For every node we load in the data and create a new node.
         foreach (TriggerNodeInfo info in sceneItems)
         {
             Node tempNode = new Node(info.rect, nodeStyle, selectedNodeStyle, inPointStyle, outPointStyle, titleStyle, OnClickRemoveNode, this, nodesCreated);
 
+            //We need to update the highest node id to make sure we dont get duplicate IDs.
             if(info.ID > highestID)
             {
                 highestID = info.ID;
@@ -139,6 +145,7 @@ public class NodeBasedEditor : EditorWindow
             nodesCreated++;
         }
 
+        //We need the ConnectionManager to load in the connecitions between nodes.
         ConnectionsManager conManager = GetConnectionManager();
 
         List<ConnectionInfo> connectionsToRemove = new List<ConnectionInfo>();
@@ -173,6 +180,7 @@ public class NodeBasedEditor : EditorWindow
 
                     if (bothNodesExist)
                     {
+                        //The connection needs to be added to both nodes (This way, in the game it knows which node(s) it needs to enable) and the connection list. 
                         inPoint.AddNewConnection(tempCon);
                         outPoint.AddNewConnection(tempCon);
 
@@ -183,6 +191,7 @@ public class NodeBasedEditor : EditorWindow
         }
         else
         {
+            //if there are no nodes, we need to clear the connections
             connectionsToRemove = conManager.connections;
         }
 
@@ -205,7 +214,7 @@ public class NodeBasedEditor : EditorWindow
         {
             TriggerNodeInfo script = sceneItems.Where(t => t.ID == _node.ID).First();
             GameObject obj = script.gameObject;
-            obj.name = "Generated_Node_" + script.ID;
+            obj.name = "Generated_Node_" + script.ID; //The name shows the node ID to make it easier.
 
             List<Vector2> v2Cons = null;
 
@@ -232,6 +241,7 @@ public class NodeBasedEditor : EditorWindow
 
         conManager.SaveConnections(conList);
 
+        //When the nodes and connections get saved, save the scene too to make sure everything is saved.
         string[] path = EditorSceneManager.GetActiveScene().path.Split(char.Parse("/"));
         path[path.Length - 1] = path[path.Length - 1];
         bool saveOK = EditorSceneManager.SaveScene(EditorSceneManager.GetActiveScene(), string.Join("/", path));
@@ -519,6 +529,7 @@ public class NodeBasedEditor : EditorWindow
             connectionsToRemove = null;
         }
 
+        //if the node is removed, remove the object from the scene too.
         GameObject objToRemove = sceneItems.Find(x => x.ID == node.ID).gameObject;
         DestroyImmediate(objToRemove);
 
@@ -530,6 +541,7 @@ public class NodeBasedEditor : EditorWindow
         Node inPoint = nodes.Where(p => p.ID == con.inPoint.ID).First();
         Node outPoint = nodes.Where(p => p.ID == con.outPoint.ID).First();
 
+        //remove the connection from the nodes too.
         inPoint.RemoveConnection(con);
         outPoint.RemoveConnection(con);
 

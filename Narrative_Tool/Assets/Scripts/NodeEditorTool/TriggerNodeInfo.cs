@@ -79,6 +79,7 @@ public class TriggerNodeInfo : MonoBehaviour
 
     public void InvokeTrigger()
     {
+        //When the trigger gets activated call this function and add what the triggers need to do. (For example link to an audiomanager to play their voicelines).
         EnableNextTriggers();
     }
 
