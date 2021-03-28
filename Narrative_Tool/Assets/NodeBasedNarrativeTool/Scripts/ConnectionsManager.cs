@@ -33,11 +33,18 @@ public class ConnectionsManager : MonoBehaviour
 
     public void LoadTriggerInfo(TriggerNodeInfo trig)
     {
-        inactiveTriggers.Add(trig);
-        if(trig.ID != 0)
+        if (trig.ID != 1)
         {
             trig.gameObject.SetActive(false);
+            inactiveTriggers.Add(trig);
         }
+        else
+        {
+            trig.gameObject.SetActive(true);
+            trig.hasBeenActivated = true;
+            activeTriggers.Add(trig);
+        }
+        
     }
 
     private void DisableAllTriggers()
@@ -63,9 +70,14 @@ public class ConnectionsManager : MonoBehaviour
         foreach(int id in triggerIDs)
         {
             TriggerNodeInfo foundTrigger = inactiveTriggers.Find(x => x.ID == id);
-            foundTrigger.gameObject.SetActive(true);
-            activeTriggers.Add(foundTrigger);
-            inactiveTriggers.Remove(foundTrigger);
+
+            if (!foundTrigger.hasBeenActivated)
+            {
+                foundTrigger.gameObject.SetActive(true);
+                foundTrigger.hasBeenActivated = true;
+                activeTriggers.Add(foundTrigger);
+                inactiveTriggers.Remove(foundTrigger);
+            }
         }
     }
 

@@ -466,6 +466,7 @@ public class NodeBasedEditor : EditorWindow
         nodeObject.AddComponent<TriggerNodeInfo>();
 
         nodeObject.GetComponent<BoxCollider>().size = new Vector3(10, 10, 1);
+        nodeObject.GetComponent<BoxCollider>().isTrigger = true;
         TriggerNodeInfo script = nodeObject.GetComponent<TriggerNodeInfo>();
 
         Node currentNode = nodes[nodes.Count - 1];

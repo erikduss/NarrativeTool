@@ -29,6 +29,9 @@ public class TriggerNodeInfo : MonoBehaviour
     [HideInInspector] public Vector3 worldPosition;
 
     private ConnectionsManager conManager;
+    private int currentVoiceLine = 0;
+
+    public bool hasBeenActivated = false;
 
     public void SaveTriggerData(Rect _rect, int _ID, string _desc, List<bool> _showOptions, List<AudioClip> _audio, List<int> _delays, List<Vector2> _cons, PathTypes _type, Vector2 _svVec, Vector3 _worldPos)
     {
@@ -80,6 +83,18 @@ public class TriggerNodeInfo : MonoBehaviour
     public void InvokeTrigger()
     {
         //When the trigger gets activated call this function and add what the triggers need to do. (For example link to an audiomanager to play their voicelines).
+
+        StartCoroutine(PlayAudioClips());
+    }
+
+    private IEnumerator PlayAudioClips()
+    {
+        while (currentVoiceLine < playedAudioClips.Count)
+        {
+            //Add the functionality of the trigger here! (Make it communicate with an audiomanager to play the voice line for example).
+            currentVoiceLine++;
+            yield return new WaitForSeconds(delays[currentVoiceLine - 1]);
+        }
         EnableNextTriggers();
     }
 
